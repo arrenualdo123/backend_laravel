@@ -10,7 +10,6 @@ DEVOPS_GUIDE.md
 .idea
 node_modules
 npm-debug.log
-composer.lock
 .DS_Store
 *.log
 storage/logs/*
