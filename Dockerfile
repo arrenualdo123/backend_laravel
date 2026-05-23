@@ -5,8 +5,8 @@ FROM php:8.2-fpm-alpine AS builder
 RUN apk add --no-cache \
     curl \
     git \
-    png-dev \
-    jpeg-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
     freetype-dev \
     sqlite-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
