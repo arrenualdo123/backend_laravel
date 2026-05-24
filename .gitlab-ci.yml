@@ -41,10 +41,11 @@ test:unit:
     APP_ENV: testing
   before_script:
     - cp -r /app/vendor ./vendor
+    # 💡 SOLUCIÓN: Creamos el archivo .env efímero para que key:generate pueda escribir en él
+    - cp .env.example .env
   script:
     - php artisan config:clear
     - php artisan key:generate --env=testing
-    # 🔥 Primero migramos para crear las tablas de caché/sesiones, luego limpiamos y probamos
     - php artisan migrate --force
     - php artisan cache:clear
     - php artisan test --testsuite=Unit --stop-on-failure
@@ -64,10 +65,11 @@ test:feature:
     APP_ENV: testing
   before_script:
     - cp -r /app/vendor ./vendor
+    # 💡 SOLUCIÓN: Lo mismo para la suite de integración
+    - cp .env.example .env
   script:
     - php artisan config:clear
     - php artisan key:generate --env=testing
-    # 🔥 Mismo orden aquí
     - php artisan migrate --force
     - php artisan cache:clear
     - php artisan test --testsuite=Feature --stop-on-failure
@@ -137,7 +139,7 @@ security:trivy:
     - develop
     - merge_requests
   allow_failure: false
-  
+
 # === DEPLOY STAGE (Staging) ===
 deploy:staging:
   stage: deploy
