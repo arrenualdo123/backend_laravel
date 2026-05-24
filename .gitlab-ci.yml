@@ -1,8 +1,16 @@
+# ==========================================
+# GitLab CI/CD Pipeline - Laravel DevOps
+# ==========================================
+
 stages:
   - build
   - test
   - security
   - deploy
+
+# ==========================================
+# VARIABLES
+# ==========================================
 
 variables:
   DOCKER_DRIVER: overlay2
@@ -15,9 +23,9 @@ cache:
     - vendor/
     - .composer/cache
 
-# =========================
-# BUILD
-# =========================
+# ==========================================
+# BUILD IMAGE
+# ==========================================
 
 build:image:
   stage: build
@@ -42,12 +50,13 @@ build:image:
   tags:
     - docker
 
-# =========================
+# ==========================================
 # UNIT TESTS
-# =========================
+# ==========================================
 
 test:unit:
   stage: test
+
   image: $IMAGE_NAME:$IMAGE_TAG
 
   variables:
@@ -71,12 +80,13 @@ test:unit:
     - develop
     - merge_requests
 
-# =========================
+# ==========================================
 # FEATURE TESTS
-# =========================
+# ==========================================
 
 test:feature:
   stage: test
+
   image: $IMAGE_NAME:$IMAGE_TAG
 
   variables:
@@ -100,12 +110,13 @@ test:feature:
     - develop
     - merge_requests
 
-# =========================
+# ==========================================
 # CODE QUALITY
-# =========================
+# ==========================================
 
 test:code-quality:
   stage: test
+
   image: $IMAGE_NAME:$IMAGE_TAG
 
   script:
@@ -119,12 +130,13 @@ test:code-quality:
     - develop
     - merge_requests
 
-# =========================
-# SEMGREP
-# =========================
+# ==========================================
+# SEMGREP SECURITY SCAN
+# ==========================================
 
 security:semgrep:
   stage: security
+
   image: returntocorp/semgrep:latest
 
   script:
@@ -135,12 +147,13 @@ security:semgrep:
     - develop
     - merge_requests
 
-# =========================
+# ==========================================
 # COMPOSER AUDIT
-# =========================
+# ==========================================
 
 security:composer-audit:
   stage: security
+
   image: composer:2
 
   script:
@@ -151,9 +164,9 @@ security:composer-audit:
     - develop
     - merge_requests
 
-# =========================
-# TRIVY
-# =========================
+# ==========================================
+# TRIVY IMAGE SCAN
+# ==========================================
 
 security:trivy:
   stage: security
@@ -174,12 +187,13 @@ security:trivy:
     - develop
     - merge_requests
 
-# =========================
+# ==========================================
 # DEPLOY STAGING
-# =========================
+# ==========================================
 
 deploy:staging:
   stage: deploy
+
   image: alpine:latest
 
   before_script:
@@ -208,3 +222,34 @@ deploy:staging:
     - develop
 
   when: manual
+
+# ==========================================
+# SUCCESS NOTIFICATION
+# ==========================================
+
+success:notification:
+  stage: .post
+
+  script:
+    - echo "Pipeline ejecutado exitosamente"
+
+  when: on_success
+
+  only:
+    - main
+
+# ==========================================
+# FAILURE NOTIFICATION
+# ==========================================
+
+failure:notification:
+  stage: .post
+
+  script:
+    - echo "Pipeline falló. Revisa los logs."
+
+  when: on_failure
+
+  only:
+    - main
+    - develop
