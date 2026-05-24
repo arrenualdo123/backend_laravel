@@ -27,10 +27,8 @@ COPY composer.json composer.lock ./
 
 # Instalar dependencias de PHP de producción
 RUN composer install \
-    --no-dev \
     --no-interaction \
     --no-progress \
-    --no-scripts \
     --optimize-autoloader
 
 # === STAGE 2: FINAL PRODUCTION IMAGE ===

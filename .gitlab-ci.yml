@@ -1,154 +1,187 @@
-# GitLab CI/CD Pipeline para Laravel
 stages:
   - build
   - test
+  - security
   - deploy
 
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  REGISTRY: "registry.gitlab.com"
-  IMAGE_NAME: "${REGISTRY}/${CI_PROJECT_PATH}"
-  IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}"
+  REGISTRY: $CI_REGISTRY
+  IMAGE_NAME: $CI_REGISTRY_IMAGE
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
 
-# === BUILD STAGE ===
+cache:
+  paths:
+    - vendor/
+    - .composer/cache
+
+# =========================
+# BUILD
+# =========================
+
 build:image:
   stage: build
-  image: docker:latest
+  image: docker:24
   services:
-    - docker:dind
+    - docker:24-dind
+
   before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+
   script:
-    - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .
-    - docker push ${IMAGE_NAME}:${IMAGE_TAG}
-    - docker push ${IMAGE_NAME}:latest
+    - docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+    - docker push $IMAGE_NAME:latest
+
   only:
     - main
     - develop
     - merge_requests
+
   tags:
     - docker
-  allow_failure: false
 
-# === TEST STAGE ===
+# =========================
+# UNIT TESTS
+# =========================
+
 test:unit:
   stage: test
-  image: ${IMAGE_NAME}:${IMAGE_TAG}
+  image: $IMAGE_NAME:$IMAGE_TAG
+
   variables:
+    APP_ENV: testing
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
-    APP_ENV: testing
     CACHE_DRIVER: array
-    CACHE_STORE: array
     SESSION_DRIVER: array
+
   before_script:
-    - cp -r /app/vendor ./vendor
     - cp .env.example .env
-    - chmod -R 777 vendor/
+
   script:
+    - php artisan key:generate
     - php artisan config:clear
-    - php artisan key:generate --env=testing
     - php artisan migrate --force
-    # 🚀 SOLUCIÓN: Llamamos directamente a PHPUnit/Pest saltándonos el wrapper de Artisan
-    - php ./vendor/bin/phpunit --testsuite=Unit --stop-on-failure
-  coverage: '/Lines:\s*(\d+\.?\d*)%/'
+    - php artisan test --testsuite=Unit
+
   only:
     - main
     - develop
     - merge_requests
-  allow_failure: false
+
+# =========================
+# FEATURE TESTS
+# =========================
 
 test:feature:
   stage: test
-  image: ${IMAGE_NAME}:${IMAGE_TAG}
+  image: $IMAGE_NAME:$IMAGE_TAG
+
   variables:
+    APP_ENV: testing
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
-    APP_ENV: testing
     CACHE_DRIVER: array
-    CACHE_STORE: array
     SESSION_DRIVER: array
+
   before_script:
-    - cp -r /app/vendor ./vendor
     - cp .env.example .env
-    - chmod -R 777 vendor/
+
   script:
+    - php artisan key:generate
     - php artisan config:clear
-    - php artisan key:generate --env=testing
     - php artisan migrate --force
-    # 🚀 SOLUCIÓN: Igual aquí para la suite funcional
-    - php ./vendor/bin/phpunit --testsuite=Feature --stop-on-failure
+    - php artisan test --testsuite=Feature
+
   only:
     - main
     - develop
     - merge_requests
-  allow_failure: false
+
+# =========================
+# CODE QUALITY
+# =========================
 
 test:code-quality:
   stage: test
-  image: ${IMAGE_NAME}:${IMAGE_TAG}
-  before_script:
-    - cp -r /app/vendor ./vendor
+  image: $IMAGE_NAME:$IMAGE_TAG
+
   script:
-    - php ./vendor/bin/pint --test app/ || true
-    - php ./vendor/bin/phpstan analyse app/ --level=5 || true
-  only:
-    - main
-    - develop
-    - merge_requests
+    - ./vendor/bin/pint --test app/
+    - ./vendor/bin/phpstan analyse app --level=5
+
   allow_failure: true
 
-# === SECURITY SCANS (DevSecOps) ===
-security:semgrep:
-  stage: test
-  image: returntocorp/semgrep:latest
-  before_script: []
-  script:
-    - semgrep --config p/ci --error --json --output semgrep-report.json .
-  artifacts:
-    paths:
-      - semgrep-report.json
-    reports:
-      sast: semgrep-report.json
   only:
     - main
     - develop
     - merge_requests
-  allow_failure: false
+
+# =========================
+# SEMGREP
+# =========================
+
+security:semgrep:
+  stage: security
+  image: returntocorp/semgrep:latest
+
+  script:
+    - semgrep --config p/ci --error
+
+  only:
+    - main
+    - develop
+    - merge_requests
+
+# =========================
+# COMPOSER AUDIT
+# =========================
 
 security:composer-audit:
-  stage: test
+  stage: security
   image: composer:2
+
   script:
-    - composer audit --no-interaction
+    - composer audit
+
   only:
     - main
     - develop
     - merge_requests
-  allow_failure: false
+
+# =========================
+# TRIVY
+# =========================
 
 security:trivy:
-  stage: test
-  image: 
-    name: aquasec/trivy:0.44.0
+  stage: security
+
+  image:
+    name: aquasec/trivy:latest
     entrypoint: [""]
+
   before_script:
-    # Autentica el contenedor de Trivy para que pueda descargar e inspeccionar la imagen privada
-    - export TRIVY_USERNAME=${CI_REGISTRY_USER}
-    - export TRIVY_PASSWORD=${CI_REGISTRY_PASSWORD}
+    - export TRIVY_USERNAME=$CI_REGISTRY_USER
+    - export TRIVY_PASSWORD=$CI_REGISTRY_PASSWORD
+
   script:
-    - trivy image --exit-code 1 --severity CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
+    - trivy image --severity HIGH,CRITICAL --exit-code 1 $IMAGE_NAME:$IMAGE_TAG
+
   only:
     - main
     - develop
     - merge_requests
-  allow_failure: false
 
-# === DEPLOY STAGE (Staging) ===
+# =========================
+# DEPLOY STAGING
+# =========================
+
 deploy:staging:
   stage: deploy
   image: alpine:latest
+
   before_script:
     - apk add --no-cache openssh-client
     - eval $(ssh-agent -s)
@@ -156,40 +189,22 @@ deploy:staging:
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - ssh-keyscan -H $STAGING_HOST >> ~/.ssh/known_hosts
+
   script:
-    - ssh $STAGING_USER@$STAGING_HOST "
-        cd $STAGING_PATH &&
-        git fetch origin &&
-        git checkout ${CI_COMMIT_SHA} &&
-        docker-compose pull &&
-        docker-compose up -d &&
-        docker-compose exec -T app php artisan migrate --force &&
-        docker-compose exec -T app php artisan cache:clear &&
-        docker-compose exec -T app php artisan config:clear
+    - |
+      ssh $STAGING_USER@$STAGING_HOST "
+      cd $STAGING_PATH &&
+      docker compose pull &&
+      docker compose up -d &&
+      docker compose exec -T app php artisan migrate --force &&
+      docker compose exec -T app php artisan optimize:clear
       "
+
   environment:
     name: staging
     url: https://staging.example.com
-    deployment_tier: staging
+
   only:
     - develop
+
   when: manual
-  allow_failure: false
-
-# === NOTIFICATIONS ===
-success:notification:
-  stage: .post
-  script:
-    - echo "Pipeline ejecutado exitosamente"
-  when: on_success
-  only:
-    - main
-
-failure:notification:
-  stage: .post
-  script:
-    - echo "Pipeline falló. Revisa los logs."
-  when: on_failure
-  only:
-    - main
-    - develop
