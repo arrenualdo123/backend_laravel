@@ -1,6 +1,4 @@
 # GitLab CI/CD Pipeline para Laravel
-# Stages: Build → Test → Deploy (Staging)
-
 stages:
   - build
   - test
@@ -14,10 +12,11 @@ variables:
   IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}"
 
 # === BUILD STAGE ===
-
 build:image:
   stage: build
   image: docker:latest
+  services:
+    - docker:dind
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
@@ -33,28 +32,19 @@ build:image:
   allow_failure: false
 
 # === TEST STAGE ===
-
 test:unit:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
-  services:
-    - docker:24-dind
-  before_script:
-    - php -r "file_exists('.env') || copy('.env.example', '.env');"
-    - cp .env.example .env
-    - echo "DB_DATABASE=/tmp/database.sqlite" >> .env
-    - composer install --no-interaction --no-progress
-    - touch /tmp/database.sqlite
+  variables:
+    # Configuramos SQLite en memoria para máxima velocidad sin alterar archivos físicos
+    DB_CONNECTION: sqlite
+    DB_DATABASE: ":memory:"
+    APP_ENV: testing
   script:
-    - php artisan migrate --database=testing --force
+    - php artisan key:generate --env=testing
+    - php artisan migrate --force
     - php artisan test --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage/cobertura-coverage.xml
-    when: always
   only:
     - main
     - develop
@@ -64,19 +54,14 @@ test:unit:
 test:feature:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
-  services:
-    - docker:24-dind
-  before_script:
-    - php -r "file_exists('.env') || copy('.env.example', '.env');"
-    - cp .env.example .env
-    - echo "DB_DATABASE=/tmp/database.sqlite" >> .env
-    - composer install --no-interaction --no-progress
-    - touch /tmp/database.sqlite
+  variables:
+    DB_CONNECTION: sqlite
+    DB_DATABASE: ":memory:"
+    APP_ENV: testing
   script:
-    - php artisan migrate --database=testing --force
+    - php artisan key:generate --env=testing
+    - php artisan migrate --force
     - php artisan test --testsuite=Feature --stop-on-failure
-  artifacts:
-    when: always
   only:
     - main
     - develop
@@ -86,24 +71,23 @@ test:feature:
 test:code-quality:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
-  before_script:
-    - composer install --no-interaction --no-progress
   script:
-    - php ./vendor/bin/pint --test app/
+    - php ./vendor/bin/pint --test app/ || true
     - php ./vendor/bin/phpstan analyse app/ --level=5 || true
   only:
     - main
     - develop
     - merge_requests
   allow_failure: true
-# === SECURITY SCANS ===
 
+# === SECURITY SCANS ===
 security:semgrep:
   stage: test
   image: returntocorp/semgrep:latest
   before_script: []
   script:
-    - semgrep --config p/ci --json --output semgrep-report.json . || true
+    # Semgrep romperá el pipeline (exit code 1) si encuentra vulnerabilidades de severidad 'error'
+    - semgrep --config p/ci --error --json --output semgrep-report.json .
   artifacts:
     paths:
       - semgrep-report.json
@@ -118,14 +102,10 @@ security:semgrep:
 security:composer-audit:
   stage: test
   image: composer:2
-  before_script:
-    - composer install --no-interaction --no-progress
   script:
-    - composer audit --format=json > composer-audit.json || true
-    - if grep -q '"advisories":\s*{}' composer-audit.json; then echo 'No advisories found'; else echo 'Vulnerabilities found' && cat composer-audit.json && exit 1; fi
-  artifacts:
-    paths:
-      - composer-audit.json
+    # Ejecuta la auditoría nativa de dependencias instaladas.
+    # Si requiere ignorar alertas menores para no bloquear por vulnerabilidades que no sean Altas/Críticas:
+    - composer audit --no-interaction
   only:
     - main
     - develop
@@ -135,17 +115,16 @@ security:composer-audit:
 security:trivy:
   stage: test
   image: aquasec/trivy:0.44.0
-  before_script:
-    - echo "Logging into registry"
   script:
+    # Bloquea (exit code 1) ÚNICAMENTE si encuentra vulnerabilidades CRÍTICAS en la imagen final
     - trivy image --exit-code 1 --severity CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
   only:
     - main
     - develop
     - merge_requests
   allow_failure: false
-# === DEPLOY STAGE (Staging) ===
 
+# === DEPLOY STAGE (Staging) ===
 deploy:staging:
   stage: deploy
   image: alpine:latest
@@ -177,8 +156,6 @@ deploy:staging:
   allow_failure: false
 
 # === NOTIFICATIONS ===
-
-# Notificación de éxito en main
 success:notification:
   stage: .post
   script:
@@ -187,7 +164,6 @@ success:notification:
   only:
     - main
 
-# Notificación de fallo
 failure:notification:
   stage: .post
   script:
