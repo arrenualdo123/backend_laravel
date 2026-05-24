@@ -47,25 +47,11 @@ test:unit:
     - cp .env.example .env
     - chmod -R 777 vendor/
   script:
-    # 🔍 DEBUG: Validar qué variables de entorno está cargando realmente el contenedor
-    - echo "=== COMPROBACIÓN DE ENTORNO EFÍMERO ==="
-    - cat .env | grep -E 's*(DB_|CACHE_|SESSION_|APP_)' || true
-    
-    # 🔍 DEBUG: Limpiar configuraciones previas con salida detallada
-    - php artisan config:clear -vvv
-    
-    # 🔍 DEBUG: Forzar la generación de la llave mostrando errores si existen
-    - php artisan key:generate --env=testing -vvv
-    
-    # 🔍 DEBUG: Ver el estado de los archivos y diagnósticos previos de Laravel
-    - php artisan about || true
-    
-    # 🚀 EJECUCIÓN: Migración con máximo nivel de detalle (Verbose)
-    - echo "=== EJECUTANDO MIGRACIONES ==="
-    - php artisan migrate --force -vvv
-    
-    # 🚀 EJECUCIÓN: Tests
-    - php artisan test --testsuite=Unit --stop-on-failure
+    - php artisan config:clear
+    - php artisan key:generate --env=testing
+    - php artisan migrate --force
+    # 🚀 SOLUCIÓN: Llamamos directamente a PHPUnit/Pest saltándonos el wrapper de Artisan
+    - php ./vendor/bin/phpunit --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
   only:
     - main
@@ -88,25 +74,11 @@ test:feature:
     - cp .env.example .env
     - chmod -R 777 vendor/
   script:
-    # 🔍 DEBUG: Validar qué variables de entorno está cargando realmente el contenedor
-    - echo "=== COMPROBACIÓN DE ENTORNO EFÍMERO ==="
-    - cat .env | grep -E 's*(DB_|CACHE_|SESSION_|APP_)' || true
-    
-    # 🔍 DEBUG: Limpiar configuraciones previas con salida detallada
-    - php artisan config:clear -vvv
-    
-    # 🔍 DEBUG: Forzar la generación de la llave mostrando errores si existen
-    - php artisan key:generate --env=testing -vvv
-    
-    # 🔍 DEBUG: Ver el estado de los archivos y diagnósticos previos de Laravel
-    - php artisan about || true
-    
-    # 🚀 EJECUCIÓN: Migración con máximo nivel de detalle (Verbose)
-    - echo "=== EJECUTANDO MIGRACIONES ==="
-    - php artisan migrate --force -vvv
-    
-    # 🚀 EJECUCIÓN: Tests
-    - php artisan test --testsuite=Feature --stop-on-failure
+    - php artisan config:clear
+    - php artisan key:generate --env=testing
+    - php artisan migrate --force
+    # 🚀 SOLUCIÓN: Igual aquí para la suite funcional
+    - php ./vendor/bin/phpunit --testsuite=Feature --stop-on-failure
   only:
     - main
     - develop
