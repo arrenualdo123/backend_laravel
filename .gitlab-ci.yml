@@ -41,6 +41,7 @@ test:unit:
     CACHE_STORE: array
     APP_ENV: testing
   before_script:
+    - ln -s /app/vendor ./vendor
     - cp .env.example .env
     - php artisan config:clear
     - php artisan key:generate
@@ -63,6 +64,7 @@ test:feature:
     CACHE_STORE: array
     APP_ENV: testing
   before_script:
+    - ln -s /app/vendor ./vendor
     - cp .env.example .env
     - php artisan config:clear
     - php artisan key:generate
