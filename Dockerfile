@@ -54,8 +54,10 @@ RUN echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/docker-php-ext-opcac
 
 WORKDIR /app
 
-# Copiar código de la aplicación y archivos de configuración
+# Copiar código de la aplicación
 COPY --chown=www-data:www-data . .
+
+# Copiar explícitamente .env.example para tests
 COPY --chown=www-data:www-data .env.example .env.example
 
 # Copiar las dependencias de vendor desde el builder

@@ -1,7 +1,6 @@
 .git
 .gitignore
 .gitlab-ci.yml
-.env.example
 docker-compose.yml
 Dockerfile
 README.md
