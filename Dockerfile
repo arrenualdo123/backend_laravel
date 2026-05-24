@@ -4,6 +4,8 @@
 
 FROM php:8.2-fpm-alpine AS builder
 
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
 # Dependencias del sistema
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache \
@@ -24,8 +26,6 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
     pdo_sqlite \
     opcache
 
-# Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
