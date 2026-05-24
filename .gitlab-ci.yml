@@ -38,16 +38,14 @@ test:unit:
   variables:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
+    CACHE_STORE: array
     APP_ENV: testing
   before_script:
-    - cp -r /app/vendor ./vendor
-    # 💡 SOLUCIÓN: Creamos el archivo .env efímero para que key:generate pueda escribir en él
     - cp .env.example .env
-  script:
     - php artisan config:clear
-    - php artisan key:generate --env=testing
+    - php artisan key:generate
+  script:
     - php artisan migrate --force
-    - php artisan cache:clear
     - php artisan test --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
   only:
@@ -62,16 +60,14 @@ test:feature:
   variables:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
+    CACHE_STORE: array
     APP_ENV: testing
   before_script:
-    - cp -r /app/vendor ./vendor
-    # 💡 SOLUCIÓN: Lo mismo para la suite de integración
     - cp .env.example .env
-  script:
     - php artisan config:clear
-    - php artisan key:generate --env=testing
+    - php artisan key:generate
+  script:
     - php artisan migrate --force
-    - php artisan cache:clear
     - php artisan test --testsuite=Feature --stop-on-failure
   only:
     - main
@@ -82,8 +78,6 @@ test:feature:
 test:code-quality:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
-  before_script:
-    - cp -r /app/vendor ./vendor
   script:
     - php ./vendor/bin/pint --test app/ || true
     - php ./vendor/bin/phpstan analyse app/ --level=5 || true
