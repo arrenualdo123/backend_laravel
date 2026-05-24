@@ -39,8 +39,9 @@ test:unit:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
+  before_script:
+    - cp -r /app/vendor ./vendor
   script:
-    # Asegurar un entorno de pruebas limpio y con llave criptográfica armada
     - php artisan config:clear
     - php artisan cache:clear
     - php artisan key:generate --env=testing
@@ -60,6 +61,8 @@ test:feature:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
+  before_script:
+    - cp -r /app/vendor ./vendor
   script:
     - php artisan config:clear
     - php artisan cache:clear
@@ -75,6 +78,8 @@ test:feature:
 test:code-quality:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
+  before_script:
+    - cp -r /app/vendor ./vendor
   script:
     - php ./vendor/bin/pint --test app/ || true
     - php ./vendor/bin/phpstan analyse app/ --level=5 || true
@@ -90,7 +95,6 @@ security:semgrep:
   image: returntocorp/semgrep:latest
   before_script: []
   script:
-    # Semgrep falla si encuentra vulnerabilidades críticas directas de severidad 'error'
     - semgrep --config p/ci --error --json --output semgrep-report.json .
   artifacts:
     paths:
@@ -107,7 +111,6 @@ security:composer-audit:
   stage: test
   image: composer:2
   script:
-    # Escaneo nativo del ecosistema de paquetes PHP instalados en producción
     - composer audit --no-interaction
   only:
     - main
@@ -117,9 +120,10 @@ security:composer-audit:
 
 security:trivy:
   stage: test
-  image: aquasec/trivy:0.44.0
+  image: 
+    name: aquasec/trivy:0.44.0
+    entrypoint: [""] # Sobrescribe el entrypoint correctamente aquí
   script:
-    # Falla estrictamente si hay vulnerabilidades CRÍTICAS del sistema operativo
     - trivy image --exit-code 1 --severity CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
   only:
     - main
