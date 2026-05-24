@@ -43,9 +43,10 @@ test:unit:
     - cp -r /app/vendor ./vendor
   script:
     - php artisan config:clear
-    - php artisan cache:clear
     - php artisan key:generate --env=testing
+    # 🔥 Primero migramos para crear las tablas de caché/sesiones, luego limpiamos y probamos
     - php artisan migrate --force
+    - php artisan cache:clear
     - php artisan test --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
   only:
@@ -65,9 +66,10 @@ test:feature:
     - cp -r /app/vendor ./vendor
   script:
     - php artisan config:clear
-    - php artisan cache:clear
     - php artisan key:generate --env=testing
+    # 🔥 Mismo orden aquí
     - php artisan migrate --force
+    - php artisan cache:clear
     - php artisan test --testsuite=Feature --stop-on-failure
   only:
     - main
@@ -122,15 +124,20 @@ security:trivy:
   stage: test
   image: 
     name: aquasec/trivy:0.44.0
-    entrypoint: [""] # Sobrescribe el entrypoint correctamente aquí
+    entrypoint: [""]
+  before_script:
+    # 🔐 Autenticar Trivy en el registro de GitLab antes de escanear la imagen remota
+    - export TRIVY_USERNAME=${CI_REGISTRY_USER}
+    - export TRIVY_PASSWORD=${CI_REGISTRY_PASSWORD}
   script:
+    # Escaneamos la imagen remota usando las credenciales del entorno
     - trivy image --exit-code 1 --severity CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
   only:
     - main
     - develop
     - merge_requests
   allow_failure: false
-
+  
 # === DEPLOY STAGE (Staging) ===
 deploy:staging:
   stage: deploy
