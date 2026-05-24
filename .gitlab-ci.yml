@@ -39,16 +39,18 @@ test:unit:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
+    # 🔥 SOLUCIÓN: Forzamos a Laravel a usar almacenamiento en memoria virtual para la caché y sesiones en las pruebas
+    CACHE_DRIVER: array
+    CACHE_STORE: array
+    SESSION_DRIVER: array
   before_script:
-    # Recupera las dependencias compiladas internas de la imagen
     - cp -r /app/vendor ./vendor
-    # Crea el archivo .env temporal para permitir la generación de la Application Key
     - cp .env.example .env
+    - chmod -R 777 vendor/
   script:
     - php artisan config:clear
     - php artisan key:generate --env=testing
     - php artisan migrate --force
-    - php artisan cache:clear
     - php artisan test --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
   only:
@@ -64,16 +66,18 @@ test:feature:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
+    # 🔥 SOLUCIÓN: Mismo ajuste estratégico aquí para evitar lecturas tempranas de tablas inexistentes
+    CACHE_DRIVER: array
+    CACHE_STORE: array
+    SESSION_DRIVER: array
   before_script:
-    # Recupera las dependencias compiladas internas de la imagen
     - cp -r /app/vendor ./vendor
-    # Crea el archivo .env temporal para permitir la generación de la Application Key
     - cp .env.example .env
+    - chmod -R 777 vendor/
   script:
     - php artisan config:clear
     - php artisan key:generate --env=testing
     - php artisan migrate --force
-    - php artisan cache:clear
     - php artisan test --testsuite=Feature --stop-on-failure
   only:
     - main
