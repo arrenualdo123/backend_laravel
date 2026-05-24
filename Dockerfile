@@ -1,8 +1,9 @@
 # === STAGE 1: BUILDER ===
 FROM php:8.2-fpm-alpine AS builder
 
-# Instalar dependencias necesarias para compilar
-RUN apk add --no-cache \
+# Actualizar el sistema e instalar dependencias necesarias para compilar
+RUN apk update && apk upgrade --no-cache \
+    && apk add --no-cache \
     curl \
     git \
     libpng-dev \
@@ -24,7 +25,7 @@ WORKDIR /app
 # Copiar archivos de configuración de Composer
 COPY composer.json composer.lock ./
 
-# Instalar dependencias de PHP de producción (sin scripts post-install que necesitan artisan)
+# Instalar dependencias de PHP de producción
 RUN composer install \
     --no-dev \
     --no-interaction \
@@ -35,8 +36,9 @@ RUN composer install \
 # === STAGE 2: FINAL PRODUCTION IMAGE ===
 FROM php:8.2-fpm-alpine
 
-# En la imagen final SOLO instalamos las librerías en tiempo de ejecución (NO los compiladores -dev)
-RUN apk add --no-cache \
+# Aplicar actualizaciones de seguridad también en la imagen final y añadir librerías runtime
+RUN apk update && apk upgrade --no-cache \
+    && apk add --no-cache \
     libpng \
     libjpeg-turbo \
     freetype \

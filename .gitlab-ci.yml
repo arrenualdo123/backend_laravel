@@ -36,11 +36,13 @@ test:unit:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
   variables:
-    # Configuramos SQLite en memoria para máxima velocidad sin alterar archivos físicos
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
   script:
+    # Asegurar un entorno de pruebas limpio y con llave criptográfica armada
+    - php artisan config:clear
+    - php artisan cache:clear
     - php artisan key:generate --env=testing
     - php artisan migrate --force
     - php artisan test --testsuite=Unit --stop-on-failure
@@ -59,6 +61,8 @@ test:feature:
     DB_DATABASE: ":memory:"
     APP_ENV: testing
   script:
+    - php artisan config:clear
+    - php artisan cache:clear
     - php artisan key:generate --env=testing
     - php artisan migrate --force
     - php artisan test --testsuite=Feature --stop-on-failure
@@ -80,13 +84,13 @@ test:code-quality:
     - merge_requests
   allow_failure: true
 
-# === SECURITY SCANS ===
+# === SECURITY SCANS (DevSecOps) ===
 security:semgrep:
   stage: test
   image: returntocorp/semgrep:latest
   before_script: []
   script:
-    # Semgrep romperá el pipeline (exit code 1) si encuentra vulnerabilidades de severidad 'error'
+    # Semgrep falla si encuentra vulnerabilidades críticas directas de severidad 'error'
     - semgrep --config p/ci --error --json --output semgrep-report.json .
   artifacts:
     paths:
@@ -103,8 +107,7 @@ security:composer-audit:
   stage: test
   image: composer:2
   script:
-    # Ejecuta la auditoría nativa de dependencias instaladas.
-    # Si requiere ignorar alertas menores para no bloquear por vulnerabilidades que no sean Altas/Críticas:
+    # Escaneo nativo del ecosistema de paquetes PHP instalados en producción
     - composer audit --no-interaction
   only:
     - main
@@ -116,7 +119,7 @@ security:trivy:
   stage: test
   image: aquasec/trivy:0.44.0
   script:
-    # Bloquea (exit code 1) ÚNICAMENTE si encuentra vulnerabilidades CRÍTICAS en la imagen final
+    # Falla estrictamente si hay vulnerabilidades CRÍTICAS del sistema operativo
     - trivy image --exit-code 1 --severity CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
   only:
     - main
