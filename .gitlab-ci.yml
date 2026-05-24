@@ -38,15 +38,17 @@ test:unit:
   variables:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
-    CACHE_STORE: array
     APP_ENV: testing
   before_script:
-    - ln -s /app/vendor ./vendor
+    # Recupera las dependencias compiladas internas de la imagen
+    - cp -r /app/vendor ./vendor
+    # Crea el archivo .env temporal para permitir la generación de la Application Key
     - cp .env.example .env
-    - php artisan config:clear
-    - php artisan key:generate
   script:
+    - php artisan config:clear
+    - php artisan key:generate --env=testing
     - php artisan migrate --force
+    - php artisan cache:clear
     - php artisan test --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
   only:
@@ -61,15 +63,17 @@ test:feature:
   variables:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
-    CACHE_STORE: array
     APP_ENV: testing
   before_script:
-    - ln -s /app/vendor ./vendor
+    # Recupera las dependencias compiladas internas de la imagen
+    - cp -r /app/vendor ./vendor
+    # Crea el archivo .env temporal para permitir la generación de la Application Key
     - cp .env.example .env
-    - php artisan config:clear
-    - php artisan key:generate
   script:
+    - php artisan config:clear
+    - php artisan key:generate --env=testing
     - php artisan migrate --force
+    - php artisan cache:clear
     - php artisan test --testsuite=Feature --stop-on-failure
   only:
     - main
@@ -80,6 +84,8 @@ test:feature:
 test:code-quality:
   stage: test
   image: ${IMAGE_NAME}:${IMAGE_TAG}
+  before_script:
+    - cp -r /app/vendor ./vendor
   script:
     - php ./vendor/bin/pint --test app/ || true
     - php ./vendor/bin/phpstan analyse app/ --level=5 || true
@@ -124,11 +130,10 @@ security:trivy:
     name: aquasec/trivy:0.44.0
     entrypoint: [""]
   before_script:
-    # 🔐 Autenticar Trivy en el registro de GitLab antes de escanear la imagen remota
+    # Autentica el contenedor de Trivy para que pueda descargar e inspeccionar la imagen privada
     - export TRIVY_USERNAME=${CI_REGISTRY_USER}
     - export TRIVY_PASSWORD=${CI_REGISTRY_PASSWORD}
   script:
-    # Escaneamos la imagen remota usando las credenciales del entorno
     - trivy image --exit-code 1 --severity CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
   only:
     - main
