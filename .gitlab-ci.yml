@@ -39,7 +39,6 @@ test:unit:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
-    # 🔥 SOLUCIÓN: Forzamos a Laravel a usar almacenamiento en memoria virtual para la caché y sesiones en las pruebas
     CACHE_DRIVER: array
     CACHE_STORE: array
     SESSION_DRIVER: array
@@ -48,9 +47,24 @@ test:unit:
     - cp .env.example .env
     - chmod -R 777 vendor/
   script:
-    - php artisan config:clear
-    - php artisan key:generate --env=testing
-    - php artisan migrate --force
+    # 🔍 DEBUG: Validar qué variables de entorno está cargando realmente el contenedor
+    - echo "=== COMPROBACIÓN DE ENTORNO EFÍMERO ==="
+    - cat .env | grep -E 's*(DB_|CACHE_|SESSION_|APP_)' || true
+    
+    # 🔍 DEBUG: Limpiar configuraciones previas con salida detallada
+    - php artisan config:clear -vvv
+    
+    # 🔍 DEBUG: Forzar la generación de la llave mostrando errores si existen
+    - php artisan key:generate --env=testing -vvv
+    
+    # 🔍 DEBUG: Ver el estado de los archivos y diagnósticos previos de Laravel
+    - php artisan about || true
+    
+    # 🚀 EJECUCIÓN: Migración con máximo nivel de detalle (Verbose)
+    - echo "=== EJECUTANDO MIGRACIONES ==="
+    - php artisan migrate --force -vvv
+    
+    # 🚀 EJECUCIÓN: Tests
     - php artisan test --testsuite=Unit --stop-on-failure
   coverage: '/Lines:\s*(\d+\.?\d*)%/'
   only:
@@ -66,7 +80,6 @@ test:feature:
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
     APP_ENV: testing
-    # 🔥 SOLUCIÓN: Mismo ajuste estratégico aquí para evitar lecturas tempranas de tablas inexistentes
     CACHE_DRIVER: array
     CACHE_STORE: array
     SESSION_DRIVER: array
@@ -75,9 +88,24 @@ test:feature:
     - cp .env.example .env
     - chmod -R 777 vendor/
   script:
-    - php artisan config:clear
-    - php artisan key:generate --env=testing
-    - php artisan migrate --force
+    # 🔍 DEBUG: Validar qué variables de entorno está cargando realmente el contenedor
+    - echo "=== COMPROBACIÓN DE ENTORNO EFÍMERO ==="
+    - cat .env | grep -E 's*(DB_|CACHE_|SESSION_|APP_)' || true
+    
+    # 🔍 DEBUG: Limpiar configuraciones previas con salida detallada
+    - php artisan config:clear -vvv
+    
+    # 🔍 DEBUG: Forzar la generación de la llave mostrando errores si existen
+    - php artisan key:generate --env=testing -vvv
+    
+    # 🔍 DEBUG: Ver el estado de los archivos y diagnósticos previos de Laravel
+    - php artisan about || true
+    
+    # 🚀 EJECUCIÓN: Migración con máximo nivel de detalle (Verbose)
+    - echo "=== EJECUTANDO MIGRACIONES ==="
+    - php artisan migrate --force -vvv
+    
+    # 🚀 EJECUCIÓN: Tests
     - php artisan test --testsuite=Feature --stop-on-failure
   only:
     - main
