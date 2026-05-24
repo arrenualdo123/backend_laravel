@@ -24,11 +24,12 @@ WORKDIR /app
 # Copiar archivos de configuración de Composer
 COPY composer.json composer.lock ./
 
-# Instalar dependencias de PHP de producción
+# Instalar dependencias de PHP de producción (sin scripts post-install que necesitan artisan)
 RUN composer install \
     --no-dev \
     --no-interaction \
     --no-progress \
+    --no-scripts \
     --optimize-autoloader
 
 # === STAGE 2: FINAL PRODUCTION IMAGE ===
