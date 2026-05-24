@@ -68,9 +68,10 @@ test:unit:
 
   before_script:
     - cp .env.example .env
+    - composer install --no-interaction --prefer-dist
+    - php artisan key:generate
 
   script:
-    - php artisan key:generate
     - php artisan config:clear
     - php artisan migrate --force
     - php artisan test --testsuite=Unit
@@ -98,9 +99,10 @@ test:feature:
 
   before_script:
     - cp .env.example .env
+    - composer install --no-interaction --prefer-dist
+    - php artisan key:generate
 
   script:
-    - php artisan key:generate
     - php artisan config:clear
     - php artisan migrate --force
     - php artisan test --testsuite=Feature
@@ -118,6 +120,9 @@ test:code-quality:
   stage: test
 
   image: $IMAGE_NAME:$IMAGE_TAG
+
+  before_script:
+    - composer install --no-interaction --prefer-dist
 
   script:
     - ./vendor/bin/pint --test app/
