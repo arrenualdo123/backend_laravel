@@ -39,11 +39,8 @@ RUN composer install \
     --no-scripts \
     --optimize-autoloader
 
-# Ahora copiar el proyecto
+# Copiar proyecto completo
 COPY . .
-
-# Ejecutar scripts de Laravel ya con artisan presente
-RUN composer dump-autoload --optimize
 
 # ==========================================
 # STAGE 2: PRODUCTION
