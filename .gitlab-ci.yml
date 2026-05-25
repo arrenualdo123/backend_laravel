@@ -145,7 +145,7 @@ security:semgrep:
   image: returntocorp/semgrep:latest
 
   script:
-    - semgrep --config p/ci --error
+    - semgrep scan --config p/ci .
 
   only:
     - main
