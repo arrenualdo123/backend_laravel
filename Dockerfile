@@ -29,17 +29,21 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
 
 WORKDIR /app
 
-# Copiar composer primero (mejor cache)
+# Copiar composer primero
 COPY composer.json composer.lock ./
 
-# Instalar dependencias
+# Instalar dependencias SIN scripts
 RUN composer install \
     --no-interaction \
     --no-progress \
+    --no-scripts \
     --optimize-autoloader
 
-# Ahora copiar el resto del proyecto
+# Ahora copiar el proyecto
 COPY . .
+
+# Ejecutar scripts de Laravel ya con artisan presente
+RUN composer dump-autoload --optimize
 
 # ==========================================
 # STAGE 2: PRODUCTION
